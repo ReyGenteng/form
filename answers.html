@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jawaban Formulir</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+    .accordion-item { border-bottom: 1px solid #e5e7eb; }
+    .accordion-header { cursor: pointer; }
+    .accordion-content { overflow: hidden; max-height: 0; transition: max-height 0.3s ease-out; }
+    .accordion-content.open { max-height: 500px; } /* Sesuaikan tinggi ini jika perlu */
+  </style>
+</head>
+<body class="p-8">
+
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold mb-6 text-center">Jawaban Formulir</h1>
+    <div class="mb-4 flex gap-4 justify-center">
+      <button id="deleteAllAnswersBtn" class="p-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+        Hapus Semua Jawaban
+      </button>
+    </div>
+    
+    <div id="answers-list" class="space-y-4">
+      <p id="loading-message" class="text-center text-gray-500">Memuat jawaban...</p>
+      </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAcFRkbZT3PD3BDObS-7T1769uH5Macvd0",
+      authDomain: "reystore-support.firebaseapp.com",
+      databaseURL: "https://reystore-support-default-rtdb.firebaseio.com",
+      projectId: "reystore-support",
+      storageBucket: "reystore-support.firebasestorage.app",
+      messagingSenderId: "446513200960",
+      appId: "1:446513200960:web:cbd40ca4315a8bf47044a5",
+      measurementId: "G-YEBFKLREK5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    
+    const answersListContainer = document.getElementById('answers-list');
+    const loadingMessage = document.getElementById('loading-message');
+    const deleteAllAnswersBtn = document.getElementById('deleteAllAnswersBtn');
+
+    const loadAnswers = () => {
+        loadingMessage.style.display = 'block';
+        answersListContainer.innerHTML = '';
+
+        database.ref('submissions').on('value', async (snapshot) => {
+            const submissions = snapshot.val();
+            loadingMessage.style.display = 'none';
+
+            if (submissions) {
+                const formTitles = {};
+                const formIds = Object.keys(submissions).map(key => submissions[key].formId).filter((value, index, self) => self.indexOf(value) === index);
+                
+                await Promise.all(formIds.map(formId => 
+                    database.ref(`forms/${formId}`).once('value').then(formSnapshot => {
+                        formTitles[formId] = formSnapshot.val()?.title || "Judul Tidak Ditemukan";
+                    })
+                ));
+
+                Object.keys(submissions).reverse().forEach(submissionId => {
+                    const submission = submissions[submissionId];
+                    const formTitle = formTitles[submission.formId] || "Judul Tidak Ditemukan";
+                    const submissionDate = new Date(submission.submittedAt).toLocaleString('id-ID');
+
+                    const answerItem = document.createElement('div');
+                    answerItem.className = 'accordion-item p-4 hover:bg-gray-50 transition';
+
+                    const header = document.createElement('div');
+                    header.className = 'accordion-header flex items-center justify-between font-semibold text-lg';
+                    header.innerHTML = `
+                        <span>${formTitle} <span class="text-sm text-gray-500 font-normal">(${submissionDate})</span></span>
+                        <span>▼</span>
+                    `;
+                    
+                    const content = document.createElement('div');
+                    content.className = 'accordion-content pl-4 pt-2 text-gray-700';
+                    let contentHtml = '<ul class="list-disc pl-5 space-y-2">';
+                    for (const key in submission.answers) {
+                        contentHtml += `<li><strong>${key}:</strong> ${submission.answers[key]}</li>`;
+                    }
+                    contentHtml += '</ul>';
+                    content.innerHTML = contentHtml;
+
+                    answerItem.appendChild(header);
+                    answerItem.appendChild(content);
+                    answersListContainer.appendChild(answerItem);
+
+                    header.addEventListener('click', () => {
+                        content.classList.toggle('open');
+                        const arrow = header.querySelector('span:last-child');
+                        arrow.textContent = content.classList.contains('open') ? '▲' : '▼';
+                    });
+                });
+                
+                deleteAllAnswersBtn.disabled = false;
+            } else {
+                answersListContainer.innerHTML = '<p class="text-center text-gray-500">Belum ada jawaban yang masuk.</p>';
+                deleteAllAnswersBtn.disabled = true;
+            }
+        });
+    };
+
+    deleteAllAnswersBtn.addEventListener('click', () => {
+        if (confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA jawaban? Tindakan ini tidak bisa dibatalkan!')) {
+            database.ref('submissions').remove()
+                .then(() => {
+                    alert('Semua jawaban berhasil dihapus!');
+                })
+                .catch(error => {
+                    console.error('Gagal menghapus semua jawaban:', error);
+                    alert('Gagal menghapus semua jawaban. Cek konsol browser.');
+                });
+        }
+    });
+
+    loadAnswers();
+  </script>
+</body>
+</html>
