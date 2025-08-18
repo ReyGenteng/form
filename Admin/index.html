@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Form Builder - Amak</title>
+    <title>Form Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -44,7 +44,7 @@
     </div>
 
     <script>
-        // Konfigurasi Firebase-mu
+        // Konfigurasi Firebase-mu (PENTING! Jangan diubah kecuali kamu punya akun Firebase lain)
         const firebaseConfig = {
             apiKey: "AIzaSyAcFRkbZT3PD3BDObS-7T1769uH5Macvd0",
             authDomain: "reystore-support.firebaseapp.com",
@@ -68,41 +68,42 @@
 
         addQuestionBtn.addEventListener('click', () => {
             const type = questionType.value;
-            const qId = `q${++questionCount}`;
             const qDiv = document.createElement('div');
-            qDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50';
+            qDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 relative';
             
             let htmlContent = '';
             if (type === 'text' || type === 'textarea') {
                 htmlContent = `
-                    <label class="block text-sm font-medium mb-2">Label Pertanyaan</label>
-                    <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Nama Lengkap">
+                    <label class="block text-sm font-medium mb-2 text-gray-700">Label Pertanyaan</label>
+                    <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Nama Lengkap" required>
                 `;
             } else if (type === 'dropdown') {
                 htmlContent = `
-                    <label class="block text-sm font-medium mb-2">Label Pertanyaan</label>
-                    <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg mb-2" placeholder="Contoh: Kategori Pertanyaan">
-                    <label class="block text-sm font-medium mb-2">Opsi (pisahkan dengan koma)</label>
-                    <input type="text" class="question-options w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Opsi A,Opsi B,Opsi C">
+                    <label class="block text-sm font-medium mb-2 text-gray-700">Label Pertanyaan</label>
+                    <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg mb-2" placeholder="Contoh: Kategori Pertanyaan" required>
+                    <label class="block text-sm font-medium mb-2 text-gray-700">Opsi (pisahkan dengan koma)</label>
+                    <input type="text" class="question-options w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Opsi A,Opsi B,Opsi C" required>
                 `;
             }
             
             qDiv.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
-                    <span class="font-semibold">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
-                    <button type="button" class="remove-btn text-red-500 hover:text-red-700">Hapus</button>
+                    <span class="font-semibold text-gray-800">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                    <button type="button" class="remove-btn text-red-500 hover:text-red-700 text-sm">Hapus</button>
                 </div>
                 <input type="hidden" class="question-type" value="${type}">
                 ${htmlContent}
             `;
             questionsContainer.appendChild(qDiv);
-
+            
+            // Tambahkan event listener untuk tombol hapus
             qDiv.querySelector('.remove-btn').addEventListener('click', () => {
                 qDiv.remove();
             });
         });
 
         saveFormBtn.addEventListener('click', () => {
+            feedback.textContent = ''; // Hapus pesan sebelumnya
             const title = formTitle.value.trim();
             if (!title) {
                 feedback.textContent = 'Judul formulir harus diisi!';
@@ -111,11 +112,16 @@
             }
 
             const questions = [];
-            const questionDivs = questionsContainer.querySelectorAll('div > div');
+            const questionDivs = questionsContainer.querySelectorAll('.p-4');
             questionDivs.forEach((qDiv, index) => {
                 const type = qDiv.querySelector('.question-type').value;
                 const label = qDiv.querySelector('.question-label').value.trim();
-                if (!label) return; // Lewati jika label kosong
+                if (!label) {
+                    // Jika ada label yang kosong, batalkan pengiriman
+                    feedback.textContent = `Label pertanyaan ke-${index + 1} tidak boleh kosong.`;
+                    feedback.className = 'mt-4 text-center font-medium text-red-500';
+                    return;
+                }
 
                 const questionData = { id: `q${index + 1}`, type, label };
                 
@@ -142,8 +148,16 @@
                 createdAt: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
                 const formId = newFormRef.key;
-                feedback.innerHTML = `Formulir berhasil disimpan! Link: <a href="form-viewer.html?id=${formId}" class="text-blue-500 hover:underline" target="_blank">form.robuxnow.xyz/view?id=${formId}</a>`;
+                const formUrl = `${window.location.origin}/form.html?id=${formId}`;
+                
+                // Pesan sukses yang jelas
+                feedback.innerHTML = `
+                    Formulir berhasil disimpan! 🎉<br>
+                    Link: <a href="${formUrl}" class="text-blue-500 hover:underline" target="_blank">${formUrl}</a>
+                `;
                 feedback.className = 'mt-4 text-center font-medium text-green-500';
+                
+                // Reset form setelah berhasil
                 formTitle.value = '';
                 questionsContainer.innerHTML = '';
             }).catch(error => {
