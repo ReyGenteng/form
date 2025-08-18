@@ -1,156 +1,60 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Isi Formulir</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    </style>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar Formulir</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800 p-8">
+<body class="p-8">
 
-    <div class="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-        <h1 id="formTitle" class="text-2xl md:text-3xl font-bold mb-2 text-center">Memuat Formulir...</h1>
-        <p id="loadingStatus" class="text-center text-gray-500 mb-6">Silakan tunggu...</p>
-        
-        <form id="dynamicForm" class="space-y-6 hidden">
-            <button type="submit" id="submitBtn" class="w-full p-4 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition">
-                Kirim Formulir
-            </button>
-        </form>
-
-        <p id="submissionFeedback" class="mt-4 text-center font-medium"></p>
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold mb-6 text-center">Daftar Formulir</h1>
+    <div id="form-list" class="space-y-4">
+      <p id="loading-message" class="text-center text-gray-500">Memuat formulir...</p>
     </div>
+  </div>
 
-    <script>
-        // Konfigurasi Firebase-mu
-        const firebaseConfig = {
-            apiKey: "AIzaSyAcFRkbZT3PD3BDObS-7T1769uH5Macvd0",
-            authDomain: "reystore-support.firebaseapp.com",
-            databaseURL: "https://reystore-support-default-rtdb.firebaseio.com",
-            projectId: "reystore-support",
-            storageBucket: "reystore-support.firebasestorage.app",
-            messagingSenderId: "446513200960",
-            appId: "1:446513200960:web:cbd40ca4315a8bf47044a5",
-            measurementId: "G-YEBFKLREK5"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAcFRkbZT3PD3BDObS-7T1769uH5Macvd0",
+      authDomain: "reystore-support.firebaseapp.com",
+      databaseURL: "https://reystore-support-default-rtdb.firebaseio.com",
+      projectId: "reystore-support",
+      storageBucket: "reystore-support.firebasestorage.app",
+      messagingSenderId: "446513200960",
+      appId: "1:446513200960:web:cbd40ca4315a8bf47044a5",
+      measurementId: "G-YEBFKLREK5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    
+    const formListContainer = document.getElementById('form-list');
+    const loadingMessage = document.getElementById('loading-message');
 
-        const params = new URLSearchParams(window.location.search);
-        const formId = params.get('id');
+    database.ref('forms').once('value', (snapshot) => {
+      const forms = snapshot.val();
+      loadingMessage.style.display = 'none';
 
-        const formTitleEl = document.getElementById('formTitle');
-        const loadingStatusEl = document.getElementById('loadingStatus');
-        const dynamicFormEl = document.getElementById('dynamicForm');
-        const submissionFeedbackEl = document.getElementById('submissionFeedback');
-        const submitBtn = document.getElementById('submitBtn');
-
-        if (formId) {
-            database.ref(`forms/${formId}`).once('value', (snapshot) => {
-                const form = snapshot.val();
-                if (form) {
-                    formTitleEl.textContent = form.title;
-                    loadingStatusEl.style.display = 'none';
-                    dynamicFormEl.classList.remove('hidden');
-
-                    const questions = form.questions || [];
-                    const formElements = document.createElement('div');
-                    formElements.id = 'form-elements';
-
-                    questions.forEach(q => {
-                        const questionDiv = document.createElement('div');
-                        questionDiv.className = 'mb-4';
-                        
-                        const labelEl = document.createElement('label');
-                        labelEl.className = 'block text-sm font-medium text-gray-700 mb-2';
-                        labelEl.textContent = q.label;
-                        questionDiv.appendChild(labelEl);
-
-                        let inputEl;
-                        if (q.type === 'text') {
-                            inputEl = document.createElement('input');
-                            inputEl.type = 'text';
-                            inputEl.name = q.id;
-                            inputEl.className = 'w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
-                            inputEl.required = true;
-                        } else if (q.type === 'textarea') {
-                            inputEl = document.createElement('textarea');
-                            inputEl.name = q.id;
-                            inputEl.rows = 4;
-                            inputEl.className = 'w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
-                            inputEl.required = true;
-                        } else if (q.type === 'dropdown') {
-                            inputEl = document.createElement('select');
-                            inputEl.name = q.id;
-                            inputEl.className = 'w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
-                            inputEl.required = true;
-                            const defaultOption = document.createElement('option');
-                            defaultOption.textContent = 'Pilih...';
-                            defaultOption.value = '';
-                            inputEl.appendChild(defaultOption);
-                            q.options.forEach(optionText => {
-                                const optionEl = document.createElement('option');
-                                optionEl.textContent = optionText;
-                                optionEl.value = optionText;
-                                inputEl.appendChild(optionEl);
-                            });
-                        }
-                        questionDiv.appendChild(inputEl);
-                        formElements.appendChild(questionDiv);
-                    });
-                    dynamicFormEl.prepend(formElements);
-                } else {
-                    formTitleEl.textContent = 'Formulir Tidak Ditemukan';
-                    loadingStatusEl.style.display = 'none';
-                }
-            }).catch(error => {
-                formTitleEl.textContent = 'Terjadi Kesalahan';
-                loadingStatusEl.textContent = `Error: ${error.message}`;
-                console.error(error);
-            });
-        } else {
-            formTitleEl.textContent = 'Formulir Tidak Ditemukan';
-            loadingStatusEl.textContent = 'URL tidak valid.';
-        }
-
-        dynamicFormEl.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const answers = {};
-            const formData = new FormData(dynamicFormEl);
-            for (const [key, value] of formData.entries()) {
-                answers[key] = value;
-            }
-
-            const submissionData = {
-                formId: formId,
-                answers: answers,
-                submittedAt: firebase.database.ServerValue.TIMESTAMP
-            };
-
-            submitBtn.textContent = 'Mengirim...';
-            submitBtn.disabled = true;
-
-            database.ref('submissions').push(submissionData)
-                .then(() => {
-                    submissionFeedbackEl.textContent = 'Terima kasih, jawabanmu berhasil dikirim!';
-                    submissionFeedbackEl.className = 'mt-4 text-center font-medium text-green-500';
-                    dynamicFormEl.reset();
-                })
-                .catch(error => {
-                    submissionFeedbackEl.textContent = `Gagal mengirim: ${error.message}`;
-                    submissionFeedbackEl.className = 'mt-4 text-center font-medium text-red-500';
-                })
-                .finally(() => {
-                    submitBtn.textContent = 'Kirim Formulir';
-                    submitBtn.disabled = false;
-                });
+      if (forms) {
+        Object.keys(forms).forEach(formId => {
+          const formTitle = forms[formId].title || "Formulir Tanpa Judul";
+          const formItem = document.createElement('a');
+          formItem.href = `form.html?id=${formId}`;
+          formItem.className = "block p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition";
+          formItem.textContent = formTitle;
+          formListContainer.appendChild(formItem);
         });
-    </script>
+      } else {
+        formListContainer.innerHTML = '<p class="text-center text-gray-500">Belum ada formulir.</p>';
+      }
+    });
+  </script>
+
 </body>
 </html>
