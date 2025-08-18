@@ -1,30 +1,91 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Isi Formulir</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Formulir</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light dark; }
+    html, body { height: 100%; }
+    body { font-family: "Plus Jakarta Sans", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    .blob { filter: blur(50px); opacity: 0.6; }
+    @keyframes floaty { 
+      0% { transform: translateY(0) translateX(0) scale(1); } 
+      50% { transform: translateY(-10px) translateX(6px) scale(1.03); } 
+      100% { transform: translateY(0) translateX(0) scale(1); } 
+    }
+    .floaty { animation: floaty 10s ease-in-out infinite; }
+    .focus-ring:focus { outline: none; box-shadow: 0 0 0 4px rgba(99,102,241,.25); }
+    .hidden { display: none; }
+    .bg-white-90 { background-color: rgba(255, 255, 255, 0.9); }
+  </style>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-  <style>
-    body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
-  </style>
 </head>
-<body class="p-8">
-
-  <div class="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-    <h1 id="form-title" class="text-2xl font-bold mb-2 text-center">Memuat Formulir...</h1>
-    <p id="loading-status" class="text-center text-gray-500 mb-6">Silakan tunggu...</p>
-
-    <form id="dynamic-form" class="space-y-6 hidden">
-      <button type="submit" id="submit-btn" class="w-full p-4 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition">
-        Kirim Formulir
-      </button>
-    </form>
-    
-    <p id="submission-feedback" class="mt-4 text-center font-medium"></p>
+<body class="min-h-screen bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 text-white">
+  <div class="pointer-events-none absolute inset-0 overflow-hidden">
+    <div class="blob floaty absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/30 rounded-full"></div>
+    <div class="blob floaty absolute bottom-0 right-0 w-96 h-96 bg-fuchsia-500/20 rounded-full" style="animation-delay: -3s;"></div>
   </div>
+
+  <main class="relative z-10 flex items-center justify-center px-4 py-10">
+    <div class="w-full max-w-4xl grid lg:grid-cols-2 gap-8">
+      <section class="rounded-3xl p-8 bg-white/5 backdrop-blur-md ring-1 ring-white/10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-400/20 text-indigo-200 text-xs font-medium mb-4">
+          <span>✨</span> Formulir Dinamis
+        </div>
+        <h1 id="form-title" class="text-3xl md:text-4xl font-semibold leading-tight">
+          Memuat formulir...
+        </h1>
+        <p class="mt-3 text-slate-300">
+          Silakan isi formulir di samping. Formulir ini dibuat secara dinamis dari database.
+        </p>
+        <p id="loading-status" class="mt-8 text-center text-slate-300">Tunggu sebentar...</p>
+      </section>
+
+      <section class="rounded-3xl p-6 md:p-8 bg-white/10 backdrop-blur-xl ring-1 ring-white/10">
+        <form id="dynamic-form" class="space-y-5 hidden">
+          <div id="form-elements-container" class="space-y-5"></div>
+          
+          <div class="flex items-center gap-3 pt-2">
+            <button type="submit" id="submit-btn"
+              class="group inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-semibold px-5 py-3 transition shadow-lg shadow-indigo-900/30">
+              <span>Kirim Formulir</span>
+              <span class="transition-transform group-hover:translate-x-0.5">➡️</span>
+            </button>
+            <button type="reset"
+              class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 text-white px-4 py-3 transition">
+              Bersihkan
+            </button>
+          </div>
+        </form>
+
+        <div id="alert-success" class="hidden mt-5 rounded-2xl p-4 bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/20">
+          <div class="flex items-start gap-3">
+            <div class="text-xl">✅</div>
+            <div>
+              <p class="font-semibold">Pesan terkirim!</p>
+              <p class="text-emerald-100/90 text-sm mt-0.5">Terima kasih, jawabanmu berhasil dikirim.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="alert-error" class="hidden mt-5 rounded-2xl p-4 bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/20">
+          <div class="flex items-start gap-3">
+            <div class="text-xl">⚠️</div>
+            <div>
+              <p class="font-semibold">Gagal mengirim.</p>
+              <p id="error-message" class="text-rose-100/90 text-sm mt-0.5">Terjadi kesalahan.</p>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
 
   <script>
     const firebaseConfig = {
@@ -46,8 +107,11 @@
     const formTitleEl = document.getElementById('form-title');
     const loadingStatusEl = document.getElementById('loading-status');
     const dynamicFormEl = document.getElementById('dynamic-form');
-    const submissionFeedbackEl = document.getElementById('submission-feedback');
+    const formElementsContainer = document.getElementById('form-elements-container');
     const submitBtn = document.getElementById('submit-btn');
+    const alertSuccess = document.getElementById('alert-success');
+    const alertError = document.getElementById('alert-error');
+    const errorMessageEl = document.getElementById('error-message');
 
     if (formId) {
       database.ref(`forms/${formId}`).once('value', (snapshot) => {
@@ -57,12 +121,10 @@
           loadingStatusEl.style.display = 'none';
           dynamicFormEl.classList.remove('hidden');
 
-          const formElementsContainer = document.createElement('div');
           (formData.questions || []).forEach(q => {
             const questionDiv = document.createElement('div');
-            questionDiv.className = 'mb-4';
             const labelEl = document.createElement('label');
-            labelEl.className = 'block text-sm font-medium text-gray-700 mb-2';
+            labelEl.className = 'block text-sm font-medium text-slate-200 mb-2';
             labelEl.textContent = q.label;
             questionDiv.appendChild(labelEl);
 
@@ -71,18 +133,18 @@
               inputEl = document.createElement('input');
               inputEl.type = 'text';
               inputEl.name = q.id;
-              inputEl.className = 'w-full p-2 border border-gray-300 rounded-lg';
+              inputEl.className = 'focus-ring w-full rounded-2xl bg-white/90 text-slate-900 placeholder-slate-500 px-4 py-3 shadow-inner shadow-slate-900/10 border border-white/20 focus:bg-white';
               inputEl.required = true;
             } else if (q.type === 'textarea') {
               inputEl = document.createElement('textarea');
               inputEl.name = q.id;
-              inputEl.rows = 4;
-              inputEl.className = 'w-full p-2 border border-gray-300 rounded-lg';
+              inputEl.rows = 5;
+              inputEl.className = 'focus-ring w-full rounded-2xl bg-white/90 text-slate-900 placeholder-slate-500 px-4 py-3 shadow-inner shadow-slate-900/10 border border-white/20 focus:bg-white';
               inputEl.required = true;
             } else if (q.type === 'dropdown') {
               inputEl = document.createElement('select');
               inputEl.name = q.id;
-              inputEl.className = 'w-full p-2 border border-gray-300 rounded-lg';
+              inputEl.className = 'focus-ring w-full rounded-2xl bg-white/90 text-slate-900 px-4 py-3 shadow-inner shadow-slate-900/10 border border-white/20 focus:bg-white';
               inputEl.required = true;
               const defaultOption = document.createElement('option');
               defaultOption.textContent = 'Pilih...';
@@ -98,7 +160,6 @@
             questionDiv.appendChild(inputEl);
             formElementsContainer.appendChild(questionDiv);
           });
-          dynamicFormEl.prepend(formElementsContainer);
         } else {
           formTitleEl.textContent = 'Formulir Tidak Ditemukan';
           loadingStatusEl.textContent = 'ID formulir tidak valid.';
@@ -115,24 +176,38 @@
 
     dynamicFormEl.addEventListener('submit', (e) => {
       e.preventDefault();
+      alertSuccess.classList.add('hidden');
+      alertError.classList.add('hidden');
+
       const answers = {};
       const formData = new FormData(dynamicFormEl);
+      let isValid = true;
       for (const [key, value] of formData.entries()) {
+        if (!value.trim()) {
+          isValid = false;
+          break;
+        }
         answers[key] = value;
       }
+
+      if (!isValid) {
+        errorMessageEl.textContent = 'Mohon isi semua kolom yang diperlukan.';
+        alertError.classList.remove('hidden');
+        return;
+      }
+
       const submissionData = { formId, answers, submittedAt: firebase.database.ServerValue.TIMESTAMP };
       submitBtn.textContent = 'Mengirim...';
       submitBtn.disabled = true;
 
       database.ref('submissions').push(submissionData)
         .then(() => {
-          submissionFeedbackEl.textContent = 'Terima kasih, jawabanmu berhasil dikirim!';
-          submissionFeedbackEl.className = 'mt-4 text-center font-medium text-green-500';
+          alertSuccess.classList.remove('hidden');
           dynamicFormEl.reset();
         })
         .catch(error => {
-          submissionFeedbackEl.textContent = `Gagal mengirim: ${error.message}`;
-          submissionFeedbackEl.className = 'mt-4 text-center font-medium text-red-500';
+          errorMessageEl.textContent = `Gagal mengirim: ${error.message}`;
+          alertError.classList.remove('hidden');
         })
         .finally(() => {
           submitBtn.textContent = 'Kirim Formulir';
@@ -140,6 +215,5 @@
         });
     });
   </script>
-
 </body>
 </html>
