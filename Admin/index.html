@@ -1,30 +1,38 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Form Builder</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    </style>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manajemen Formulir</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+    .hidden { display: none; }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800 p-8">
+<body class="p-8">
 
-    <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-        <h1 class="text-3xl font-bold mb-6 text-center">Buat Formulir Baru</h1>
-        
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold mb-6 text-center">Manajemen Formulir</h1>
+
+    <div class="flex flex-col md:flex-row gap-4 mb-6">
+      <button id="showBuilderBtn" class="w-full md:w-1/2 p-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition">
+        Buat Formulir Baru
+      </button>
+      <button id="showListBtn" class="w-full md:w-1/2 p-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">
+        Lihat Daftar Formulir
+      </button>
+    </div>
+
+    <div id="formBuilderSection" class="hidden">
+        <h2 class="text-2xl font-bold mb-4">Buat Formulir Baru</h2>
         <div class="mb-6">
             <label for="formTitle" class="block text-sm font-medium text-gray-700 mb-2">Judul Formulir</label>
             <input type="text" id="formTitle" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: Formulir Pendaftaran Anggota">
         </div>
-
-        <div id="questions-container" class="space-y-6 mb-6">
-            </div>
-
+        <div id="questions-container" class="space-y-6 mb-6"></div>
         <div class="flex flex-col md:flex-row gap-4 mb-6">
             <select id="questionType" class="w-full md:w-auto p-3 border border-gray-300 rounded-lg">
                 <option value="text">Input Teks Singkat</option>
@@ -35,136 +43,248 @@
                 Tambah Pertanyaan
             </button>
         </div>
-
         <button id="saveFormBtn" class="w-full p-4 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition">
             Simpan Formulir
         </button>
-
         <p id="feedback" class="mt-4 text-center font-medium"></p>
     </div>
 
-    <script>
-        // Konfigurasi Firebase-mu (PENTING! Jangan diubah kecuali kamu punya akun Firebase lain)
-        const firebaseConfig = {
-            apiKey: "AIzaSyAcFRkbZT3PD3BDObS-7T1769uH5Macvd0",
-            authDomain: "reystore-support.firebaseapp.com",
-            databaseURL: "https://reystore-support-default-rtdb.firebaseio.com",
-            projectId: "reystore-support",
-            storageBucket: "reystore-support.firebasestorage.app",
-            messagingSenderId: "446513200960",
-            appId: "1:446513200960:web:cbd40ca4315a8bf47044a5",
-            measurementId: "G-YEBFKLREK5"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+    <div id="formListSection" class="hidden">
+        <h2 class="text-2xl font-bold mb-4">Daftar Formulir</h2>
+        <div class="flex flex-col md:flex-row gap-4 mb-6 justify-center">
+            <button id="deleteSelectedBtn" class="w-full md:w-1/2 p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Hapus yang Dipilih
+            </button>
+            <button id="deleteAllBtn" class="w-full md:w-1/2 p-3 bg-red-700 text-white font-semibold rounded-lg hover:bg-red-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Hapus Semua
+            </button>
+        </div>
+        <div id="form-list" class="space-y-4">
+            <p id="loading-message" class="text-center text-gray-500">Memuat formulir...</p>
+        </div>
+    </div>
+  </div>
 
-        const questionsContainer = document.getElementById('questions-container');
-        const addQuestionBtn = document.getElementById('addQuestionBtn');
-        const saveFormBtn = document.getElementById('saveFormBtn');
-        const questionType = document.getElementById('questionType');
-        const formTitle = document.getElementById('formTitle');
-        const feedback = document.getElementById('feedback');
-        let questionCount = 0;
+  <script>
+    // Konfigurasi Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAcFRkbZT3PD3BDObS-7T1769uH5Macvd0",
+      authDomain: "reystore-support.firebaseapp.com",
+      databaseURL: "https://reystore-support-default-rtdb.firebaseio.com",
+      projectId: "reystore-support",
+      storageBucket: "reystore-support.firebasestorage.app",
+      messagingSenderId: "446513200960",
+      appId: "1:446513200960:web:cbd40ca4315a8bf47044a5",
+      measurementId: "G-YEBFKLREK5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-        addQuestionBtn.addEventListener('click', () => {
-            const type = questionType.value;
-            const qDiv = document.createElement('div');
-            qDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 relative';
-            
-            let htmlContent = '';
-            if (type === 'text' || type === 'textarea') {
-                htmlContent = `
-                    <label class="block text-sm font-medium mb-2 text-gray-700">Label Pertanyaan</label>
-                    <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Nama Lengkap" required>
-                `;
-            } else if (type === 'dropdown') {
-                htmlContent = `
-                    <label class="block text-sm font-medium mb-2 text-gray-700">Label Pertanyaan</label>
-                    <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg mb-2" placeholder="Contoh: Kategori Pertanyaan" required>
-                    <label class="block text-sm font-medium mb-2 text-gray-700">Opsi (pisahkan dengan koma)</label>
-                    <input type="text" class="question-options w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Opsi A,Opsi B,Opsi C" required>
-                `;
-            }
-            
-            qDiv.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
-                    <span class="font-semibold text-gray-800">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
-                    <button type="button" class="remove-btn text-red-500 hover:text-red-700 text-sm">Hapus</button>
-                </div>
-                <input type="hidden" class="question-type" value="${type}">
-                ${htmlContent}
+    // Elemen HTML
+    const formBuilderSection = document.getElementById('formBuilderSection');
+    const formListSection = document.getElementById('formListSection');
+    const showBuilderBtn = document.getElementById('showBuilderBtn');
+    const showListBtn = document.getElementById('showListBtn');
+    
+    // Elemen Form Builder
+    const formTitleInput = document.getElementById('formTitle');
+    const questionsContainer = document.getElementById('questions-container');
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    const saveFormBtn = document.getElementById('saveFormBtn');
+    const questionTypeSelect = document.getElementById('questionType');
+    const feedbackEl = document.getElementById('feedback');
+    let questionCount = 0;
+
+    // Elemen Daftar Formulir
+    const formListContainer = document.getElementById('form-list');
+    const loadingMessage = document.getElementById('loading-message');
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+
+    // Tampilkan bagian "Form Builder" saat pertama kali dimuat
+    formBuilderSection.classList.remove('hidden');
+
+    // Logika Navigasi
+    showBuilderBtn.addEventListener('click', () => {
+      formListSection.classList.add('hidden');
+      formBuilderSection.classList.remove('hidden');
+    });
+
+    showListBtn.addEventListener('click', () => {
+      formBuilderSection.classList.add('hidden');
+      formListSection.classList.remove('hidden');
+      loadFormList();
+    });
+
+    // Logika Form Builder
+    addQuestionBtn.addEventListener('click', () => {
+        const type = questionTypeSelect.value;
+        const qDiv = document.createElement('div');
+        qDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 relative';
+        
+        let htmlContent = '';
+        if (type === 'text' || type === 'textarea') {
+            htmlContent = `
+                <label class="block text-sm font-medium mb-2 text-gray-700">Label Pertanyaan</label>
+                <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Nama Lengkap" required>
             `;
-            questionsContainer.appendChild(qDiv);
-            
-            // Tambahkan event listener untuk tombol hapus
-            qDiv.querySelector('.remove-btn').addEventListener('click', () => {
-                qDiv.remove();
-            });
+        } else if (type === 'dropdown') {
+            htmlContent = `
+                <label class="block text-sm font-medium mb-2 text-gray-700">Label Pertanyaan</label>
+                <input type="text" class="question-label w-full p-2 border border-gray-300 rounded-lg mb-2" placeholder="Contoh: Kategori Pertanyaan" required>
+                <label class="block text-sm font-medium mb-2 text-gray-700">Opsi (pisahkan dengan koma)</label>
+                <input type="text" class="question-options w-full p-2 border border-gray-300 rounded-lg" placeholder="Contoh: Opsi A,Opsi B,Opsi C" required>
+            `;
+        }
+        
+        qDiv.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-semibold text-gray-800">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                <button type="button" class="remove-btn text-red-500 hover:text-red-700 text-sm">Hapus</button>
+            </div>
+            <input type="hidden" class="question-type" value="${type}">
+            ${htmlContent}
+        `;
+        questionsContainer.appendChild(qDiv);
+        
+        qDiv.querySelector('.remove-btn').addEventListener('click', () => {
+            qDiv.remove();
         });
+    });
 
-        saveFormBtn.addEventListener('click', () => {
-            feedback.textContent = ''; // Hapus pesan sebelumnya
-            const title = formTitle.value.trim();
-            if (!title) {
-                feedback.textContent = 'Judul formulir harus diisi!';
-                feedback.className = 'mt-4 text-center font-medium text-red-500';
+    saveFormBtn.addEventListener('click', () => {
+        feedbackEl.textContent = '';
+        const title = formTitleInput.value.trim();
+        if (!title) {
+            feedbackEl.textContent = 'Judul formulir harus diisi!';
+            feedbackEl.className = 'mt-4 text-center font-medium text-red-500';
+            return;
+        }
+
+        const questions = [];
+        const questionDivs = questionsContainer.querySelectorAll('.p-4');
+        questionDivs.forEach((qDiv, index) => {
+            const type = qDiv.querySelector('.question-type').value;
+            const label = qDiv.querySelector('.question-label').value.trim();
+            if (!label) {
+                feedbackEl.textContent = `Label pertanyaan ke-${index + 1} tidak boleh kosong.`;
+                feedbackEl.className = 'mt-4 text-center font-medium text-red-500';
                 return;
             }
-
-            const questions = [];
-            const questionDivs = questionsContainer.querySelectorAll('.p-4');
-            questionDivs.forEach((qDiv, index) => {
-                const type = qDiv.querySelector('.question-type').value;
-                const label = qDiv.querySelector('.question-label').value.trim();
-                if (!label) {
-                    // Jika ada label yang kosong, batalkan pengiriman
-                    feedback.textContent = `Label pertanyaan ke-${index + 1} tidak boleh kosong.`;
-                    feedback.className = 'mt-4 text-center font-medium text-red-500';
-                    return;
+            const questionData = { id: `q${index + 1}`, type, label };
+            if (type === 'dropdown') {
+                const optionsInput = qDiv.querySelector('.question-options');
+                const options = optionsInput.value.split(',').map(opt => opt.trim()).filter(Boolean);
+                if (options.length > 0) {
+                    questionData.options = options;
                 }
-
-                const questionData = { id: `q${index + 1}`, type, label };
-                
-                if (type === 'dropdown') {
-                    const optionsInput = qDiv.querySelector('.question-options');
-                    const options = optionsInput.value.split(',').map(opt => opt.trim()).filter(Boolean);
-                    if (options.length > 0) {
-                        questionData.options = options;
-                    }
-                }
-                questions.push(questionData);
-            });
-
-            if (questions.length === 0) {
-                feedback.textContent = 'Tambahkan minimal satu pertanyaan!';
-                feedback.className = 'mt-4 text-center font-medium text-red-500';
-                return;
             }
-
-            const newFormRef = database.ref('forms').push();
-            newFormRef.set({
-                title: title,
-                questions: questions,
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                const formId = newFormRef.key;
-                const formUrl = `${window.location.origin}/form.html?id=${formId}`;
-                
-                // Pesan sukses yang jelas
-                feedback.innerHTML = `
-                    Formulir berhasil disimpan! 🎉<br>
-                    Link: <a href="${formUrl}" class="text-blue-500 hover:underline" target="_blank">${formUrl}</a>
-                `;
-                feedback.className = 'mt-4 text-center font-medium text-green-500';
-                
-                // Reset form setelah berhasil
-                formTitle.value = '';
-                questionsContainer.innerHTML = '';
-            }).catch(error => {
-                feedback.textContent = `Gagal menyimpan: ${error.message}`;
-                feedback.className = 'mt-4 text-center font-medium text-red-500';
-            });
+            questions.push(questionData);
         });
-    </script>
+
+        if (questions.length === 0) {
+            feedbackEl.textContent = 'Tambahkan minimal satu pertanyaan!';
+            feedbackEl.className = 'mt-4 text-center font-medium text-red-500';
+            return;
+        }
+
+        const newFormRef = database.ref('forms').push();
+        newFormRef.set({
+            title: title,
+            questions: questions,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            const formId = newFormRef.key;
+            const formUrl = `${window.location.origin}/form.html?id=${formId}`;
+            feedbackEl.innerHTML = `
+                Formulir berhasil disimpan! 🎉<br>
+                Link: <a href="${formUrl}" class="text-blue-500 hover:underline" target="_blank">${formUrl}</a>
+            `;
+            feedbackEl.className = 'mt-4 text-center font-medium text-green-500';
+            formTitleInput.value = '';
+            questionsContainer.innerHTML = '';
+        }).catch(error => {
+            feedbackEl.textContent = `Gagal menyimpan: ${error.message}`;
+            feedbackEl.className = 'mt-4 text-center font-medium text-red-500';
+        });
+    });
+
+    // Logika Daftar Formulir
+    const updateButtonsState = () => {
+      const checkboxes = document.querySelectorAll('.form-checkbox:checked');
+      deleteSelectedBtn.disabled = checkboxes.length === 0;
+      deleteAllBtn.disabled = formListContainer.querySelectorAll('.form-checkbox').length === 0;
+    };
+
+    const loadFormList = () => {
+        loadingMessage.style.display = 'block';
+        formListContainer.innerHTML = '';
+        database.ref('forms').once('value', (snapshot) => {
+            const forms = snapshot.val();
+            loadingMessage.style.display = 'none';
+            if (forms) {
+                Object.keys(forms).forEach(formId => {
+                    const formTitle = forms[formId].title || "Formulir Tanpa Judul";
+                    const formItem = document.createElement('div');
+                    formItem.className = "flex items-center justify-between p-4 bg-gray-100 rounded-lg";
+                    formItem.innerHTML = `
+                        <div class="flex items-center gap-4 flex-grow">
+                            <input type="checkbox" data-id="${formId}" class="form-checkbox h-4 w-4 text-blue-600 rounded">
+                            <a href="form.html?id=${formId}" class="flex-grow font-semibold hover:underline">${formTitle}</a>
+                        </div>
+                    `;
+                    formListContainer.appendChild(formItem);
+                });
+                document.querySelectorAll('.form-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updateButtonsState);
+                });
+                updateButtonsState();
+            } else {
+                formListContainer.innerHTML = '<p class="text-center text-gray-500">Belum ada formulir.</p>';
+                updateButtonsState();
+            }
+        });
+    };
+
+    deleteAllBtn.addEventListener('click', () => {
+      if (confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA formulir? Tindakan ini tidak bisa dibatalkan!')) {
+        database.ref('forms').remove()
+          .then(() => {
+            alert('Semua formulir berhasil dihapus!');
+            loadFormList();
+          })
+          .catch(error => {
+            console.error('Gagal menghapus semua formulir:', error);
+            alert('Gagal menghapus semua formulir. Cek konsol browser.');
+          });
+      }
+    });
+
+    deleteSelectedBtn.addEventListener('click', () => {
+      const checkboxes = document.querySelectorAll('.form-checkbox:checked');
+      if (checkboxes.length === 0) {
+        alert('Pilih setidaknya satu formulir untuk dihapus.');
+        return;
+      }
+      
+      if (confirm(`Apakah Anda yakin ingin menghapus ${checkboxes.length} formulir yang dipilih?`)) {
+        const promises = [];
+        checkboxes.forEach(checkbox => {
+          const formIdToDelete = checkbox.dataset.id;
+          promises.push(database.ref('forms/' + formIdToDelete).remove());
+        });
+        
+        Promise.all(promises)
+          .then(() => {
+            alert(`${checkboxes.length} formulir berhasil dihapus!`);
+            loadFormList();
+          })
+          .catch(error => {
+            console.error('Gagal menghapus formulir yang dipilih:', error);
+            alert('Gagal menghapus beberapa formulir. Cek konsol browser.');
+          });
+      }
+    });
+  </script>
 </body>
 </html>
